@@ -1,50 +1,42 @@
-from flask import Flask
+import pickle
+from flask import Flask, request, render_template
+import pandas as pd
 
 application = Flask(__name__)
+app = application
 
-@application.route("/")
-def home():
-    return """
-    <html>
-    <head><title>Forest Fire ML System</title></head>
-    <body style="font-family: Arial; margin: 40px; background: #f5f5f5;">
-        <div style="background: white; padding: 30px; border-radius: 10px;">
-            <h1 style="color: #d32f2f;">🔥 Forest Fire Prediction System</h1>
-            <p><strong>Status:</strong> ✅ Application Running Successfully</p>
-            <p><strong>Platform:</strong> AWS Elastic Beanstalk</p>
-            <p><strong>Framework:</strong> Flask 3.1.3</p>
-            <hr>
-            <p><a href="/health" style="color: #1976d2;">🔍 Health Check</a></p>
-            <p><a href="/predict" style="color: #1976d2;">🔮 Make Prediction</a></p>
-        </div>
-    </body>
-    </html>
-    """
+# Load full pipeline model
+model = pickle.load(open('models/model.pkl','rb'))
 
-@application.route("/health")
-def health():
-    return {
-        "status": "healthy",
-        "message": "Forest Fire ML System is running",
-        "platform": "AWS Elastic Beanstalk",
-        "framework": "Flask 3.1.3"
-    }
+@app.route("/")
+def index():
+    return render_template('index.html')
 
-@application.route("/predict")
-def predict():
-    return """
-    <html>
-    <head><title>Forest Fire Prediction</title></head>
-    <body style="font-family: Arial; margin: 40px; background: #f5f5f5;">
-        <div style="background: white; padding: 30px; border-radius: 10px;">
-            <h1 style="color: #d32f2f;">🔥 Forest Fire Risk Prediction</h1>
-            <p>Prediction form will be available here.</p>
-            <p><strong>Status:</strong> ✅ Route Working</p>
-            <p><a href="/" style="color: #1976d2;">← Back to Home</a></p>
-        </div>
-    </body>
-    </html>
-    """
+@app.route('/predictdata', methods=['GET','POST'])
+def predict_datapoint():
+
+    if request.method == "POST":
+
+        input_df = pd.DataFrame([{
+            'Temperature': float(request.form.get('Temperature')),
+            'RH': float(request.form.get('RH')),
+            'Ws': float(request.form.get('Ws')),
+            'Rain': float(request.form.get('Rain')),
+            'FFMC': float(request.form.get('FFMC')),
+            'DMC': float(request.form.get('DMC')),
+            'DC': float(request.form.get('DC')),
+            'ISI': float(request.form.get('ISI')),
+            'BUI': float(request.form.get('BUI')),
+            'Classes': float(request.form.get('Classes')),
+            'Region': float(request.form.get('Region'))
+        }])
+
+        result = model.predict(input_df)
+
+        return render_template('home.html', results=round(result[0], 3))
+
+    return render_template('home.html')
+
 
 if __name__ == "__main__":
-    application.run(debug=True)
+    app.run(host="0.0.0.0", port=8000, debug=True)
